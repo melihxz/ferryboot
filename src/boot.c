@@ -31,8 +31,8 @@ typedef struct {
 Config config;
 
 // Bellek simülasyonu
-#define KERNEL_LOAD_ADDRESS 0x1000 // The mem addres that kernel will load
-static unsigned char memory[0x100000]; // Simulated memory (1MB)
+#define KERNEL_LOAD_ADDRESS 0x10000 // Kernel'in yükleneceği bellek adresi
+static unsigned char memory[0x100000]; // Simüle edilmiş bellek (1MB)
 
 // Dosya işlemleri
 typedef FILE File;
@@ -163,7 +163,11 @@ void print_boot_menu() {
 // Kullanıcı girdisini alma işlevi
 int get_input() {
     int input;
-    scanf("%d", &input);
+    printf("Select an option: ");
+    if (scanf("%d", &input) != 1) {
+        while (getchar() != '\n'); // Buffer temizleme
+        return -1; // Error: Invalid input
+    }
     return input;
 }
 
@@ -203,7 +207,7 @@ void load_config() {
 void save_config() {
     printf("Saving configuration...\n");
 
-    File* config_file = open_file("ferry.cfg");
+    File* config_file = fopen("ferry.cfg", "wb");
 
     if (config_file == NULL) {
         printf("Error: Unable to open configuration file for writing.\n");
@@ -257,6 +261,7 @@ void configure() {
 // Exit bootloader
 void exit_bootloader() {
     printf("Exiting bootloader.\n");
+    exit(0);
 }
 
 // Sistemi durdurma işlevi
