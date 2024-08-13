@@ -19,17 +19,33 @@ start:
     int 0x13             ; Call BIOS interrupt
 
     ; Check if the read operation was successful
-    jc read_error        ; If carry flag is set, jump to error handling
+    jc disk_read_error   ; If carry flag is set, jump to disk read error handling
 
     ; Jump to Stage 2 bootloader
     jmp 0x1000:0x0000
 
-read_error:
-    ; Display error message (very basic)
-    mov ah, 0x0E         ; BIOS interrupt 10h - Teletype output
-    mov al, 'E'          ; Character to print
-    int 0x10             ; Call BIOS interrupt
-    hlt                  ; Halt the CPU
+disk_read_error:
+    ; Display a disk read error message
+    mov si, disk_error_msg
+    call print_string
+    jmp halt_system
+
+print_string:
+    ; Print a null-terminated string pointed to by SI
+    mov ah, 0x0E
+.print_char:
+    lodsb                 ; Load next byte from string into AL
+    cmp al, 0
+    je .done              ; If end of string (null), we're done
+    int 0x10              ; Otherwise, print character
+    jmp .print_char
+.done:
+    ret
+
+halt_system:
+    hlt                   ; Halt the CPU
+
+disk_error_msg db 'Disk Read Error!', 0
 
 times 510-($-$$) db 0  ; Fill the rest of the boot sector with zeros
 dw 0xAA55             ; Boot signature
