@@ -1,44 +1,41 @@
-# Compiler and flags
-CC = gcc
-AS = nasm
-CFLAGS = -Wall -O2 -Iinclude -m32
-ASFLAGS = -f bin
-LDFLAGS = -m32 -nostartfiles -nodefaultlibs -o
+# Makefile for Ferryboot
 
-# Directories
-SRC_DIR = src
-OBJ_DIR = obj
-INCLUDE_DIR = include
+# Compiler and tools
+CC = gcc
+ASM = nasm
+LD = ld
+OBJDUMP = objdump
+
+# Flags
+CFLAGS = -ffreestanding -nostdlib -nostartfiles -m16 -Wall
+ASMFLAGS = -f bin
+LDFLAGS = -T linker.ld
 
 # Source files
-C_SRC_FILES = $(wildcard $(SRC_DIR)/*.c)
-C_OBJ_FILES = $(C_SRC_FILES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
-ASM_SRC_FILES = $(wildcard $(SRC_DIR)/*.asm)
-ASM_OBJ_FILES = $(ASM_SRC_FILES:$(SRC_DIR)/%.asm=$(OBJ_DIR)/%.bin)
+C_SRC = boot.c
+ASM_SRC = boot.asm
+OBJ = boot.o
 
-# Target binary
-TARGET = bootloader
+# Output file
+OUTPUT = boot.bin
 
-# Default target
-all: $(TARGET)
+all: $(OUTPUT)
 
-# Link target binary
-$(TARGET): $(C_OBJ_FILES)
-	$(CC) $(LDFLAGS) $@ $(C_OBJ_FILES)
+# Compile the C source file
+$(OBJ): $(C_SRC)
+	$(CC) $(CFLAGS) -c $(C_SRC) -o $(OBJ)
 
-# Compile C source files
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c -o $@ $<
+# Assemble the assembly source file
+$(OUTPUT): $(ASM_SRC) $(OBJ)
+	$(ASM) $(ASMFLAGS) $(ASM_SRC) -o $(OBJ)
+	$(LD) $(LDFLAGS) $(OBJ) -o $(OUTPUT)
 
-# Assemble assembly source files
-$(OBJ_DIR)/%.bin: $(SRC_DIR)/%.asm
-	@mkdir -p $(dir $@)
-	$(AS) $(ASFLAGS) -o $@ $<
-
-# Clean build artifacts
+# Clean up the build files
 clean:
-	rm -f $(TARGET)
-	rm -rf $(OBJ_DIR)
+	rm -f $(OBJ) $(OUTPUT)
 
-.PHONY: all clean
+# Dump the binary file
+dump: $(OUTPUT)
+	$(OBJDUMP) -D $(OUTPUT)
+
+.PHONY: all clean dump
