@@ -1,51 +1,46 @@
-[BITS 16]
-[ORG 0x7C00]
+[BITS 16]          ; 16-bit kod
+[ORG 0x7C00]       ; Boot sektörünün başlangıç adresi
 
-start:
-    ; Set up segment registers
-    xor ax, ax
-    mov ds, ax
+; Bootloader kodu başlıyor
+
+START:
+    ; Ekranı temizle
+    mov ax, 0xB800
     mov es, ax
-    mov ss, ax
-    mov sp, 0x7C00
+    mov di, 0x0000
+    mov al, 0x00
+    mov ah, 0x07
+    mov cx, 2000
+    rep stosw
 
-    ; Load Stage 2 bootloader from disk
-    mov ah, 0x02         ; BIOS interrupt 13h - Read Sectors
-    mov al, 1            ; Number of sectors to read
-    mov ch, 0            ; Cylinder
-    mov cl, 2            ; Sector number (2)
-    mov dh, 0            ; Head
-    mov dl, 0x80         ; Drive (first hard disk)
-    int 0x13             ; Call BIOS interrupt
+    ; Kernel'i bellek adresine yükle
+    mov si, 0x1000    ; Kernel'i bellek adresinden yükle
+    mov bx, 0x8000    ; Kernel verilerini okumak için bir bellek adresi
+    mov cx, 0x10000   ; Okunacak veri miktarı (64 KB)
 
-    ; Check if the read operation was successful
-    jc disk_read_error   ; If carry flag is set, jump to disk read error handling
+    ; Disk okuma işlemi
+    mov ah, 0x02      ; Disk okuma fonksiyonu
+    mov al, 0x01      ; Bir sektör oku
+    mov ch, 0x00      ; Silindirin yüksek kısmı
+    mov cl, 0x02      ; Sektör numarası (başlangıçta 2. sektör)
+    mov dh, 0x00      ; Yüzey numarası
+    mov dl, 0x80      ; İlk sabit disk
+    int 0x13          ; BIOS Disk hizmet çağrısı
 
-    ; Jump to Stage 2 bootloader
-    jmp 0x1000:0x0000
+    ; Kernel'i yükledikten sonra çalıştır
+    jmp 0x0000:0x1000 ; Kernel'in başlangıç adresine zıpla
 
-disk_read_error:
-    ; Display a disk read error message
-    mov si, disk_error_msg
-    call print_string
-    jmp halt_system
+; Boş bir döngü
+HALT:
+    jmp HALT
 
-print_string:
-    ; Print a null-terminated string pointed to by SI
+; Disk hatası durumunda burada dur
+DISK_ERROR:
     mov ah, 0x0E
-.print_char:
-    lodsb                 ; Load next byte from string into AL
-    cmp al, 0
-    je .done              ; If end of string (null), we're done
-    int 0x10              ; Otherwise, print character
-    jmp .print_char
-.done:
-    ret
+    mov al, 'E'
+    int 0x10
+    jmp HALT
 
-halt_system:
-    hlt                   ; Halt the CPU
-
-disk_error_msg db 'Disk Read Error!', 0
-
-times 510-($-$$) db 0  ; Fill the rest of the boot sector with zeros
-dw 0xAA55             ; Boot signature
+; Bootloader sonu
+TIMES 510 - ($ - $$) DB 0  ; 510 byte'a kadar boş yer
+DW 0xAA55                 ; Boot sektör imzası
