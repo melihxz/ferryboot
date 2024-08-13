@@ -1,41 +1,41 @@
-# Makefile for Ferryboot
+# Makefile for building Ferryboot
 
-# Compiler and tools
+# Compiler and flags
 CC = gcc
-ASM = nasm
+AS = nasm
 LD = ld
-OBJDUMP = objdump
+CFLAGS = -Wall -m32 -nostdlib -nostartfiles
+LDFLAGS = -m32 -nostdlib -nostartfiles
 
-# Flags
-CFLAGS = -ffreestanding -nostdlib -nostartfiles -m16 -Wall
-ASMFLAGS = -f bin
-LDFLAGS = -T linker.ld
+# Directories
+SRC_DIR = src
+OBJ_DIR = obj
+BIN_DIR = bin
 
-# Source files
-C_SRC = boot.c
-ASM_SRC = boot.asm
-OBJ = boot.o
+# Files
+TARGET = bootloader
+SRC = $(SRC_DIR)/boot.c
+OBJ = $(OBJ_DIR)/boot.o
+BIN = $(BIN_DIR)/$(TARGET)
 
-# Output file
-OUTPUT = boot.bin
+# Default target
+all: $(BIN)
 
-all: $(OUTPUT)
+# Compile C source files
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-# Compile the C source file
-$(OBJ): $(C_SRC)
-	$(CC) $(CFLAGS) -c $(C_SRC) -o $(OBJ)
+# Link object files to create the binary
+$(BIN): $(OBJ)
+	@mkdir -p $(BIN_DIR)
+	$(LD) $(LDFLAGS) -o $@ $^
 
-# Assemble the assembly source file
-$(OUTPUT): $(ASM_SRC) $(OBJ)
-	$(ASM) $(ASMFLAGS) $(ASM_SRC) -o $(OBJ)
-	$(LD) $(LDFLAGS) $(OBJ) -o $(OUTPUT)
-
-# Clean up the build files
+# Clean up build artifacts
 clean:
-	rm -f $(OBJ) $(OUTPUT)
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
 
-# Dump the binary file
-dump: $(OUTPUT)
-	$(OBJDUMP) -D $(OUTPUT)
+# Rebuild everything
+rebuild: clean all
 
-.PHONY: all clean dump
+.PHONY: all clean rebuild
