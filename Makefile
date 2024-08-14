@@ -1,41 +1,48 @@
-# Makefile for building Ferryboot
+# Makefile
 
-# Compiler and flags
-CC = gcc
-AS = nasm
-LD = ld
-CFLAGS = -Wall -m32 -nostdlib -nostartfiles
-LDFLAGS = -m32 -nostdlib -nostartfiles
+# Komut dosyası ve dosya isimleri
+BOOTLOADER_SRC = boot.asm
+KERNEL1_SRC = kernel1.asm
+KERNEL_C_SRC = kernel.c
+KERNEL1_BIN = kernel1.bin
+KERNEL_C_BIN = kernel.bin
+BOOTLOADER_BIN = boot.bin
+OS_IMAGE = os-image
 
-# Directories
-SRC_DIR = src
-OBJ_DIR = obj
-BIN_DIR = bin
+# Derleyiciler ve bayraklar
+ASM = nasm
+ASM_FLAGS = -f bin
+GCC = gcc
+GCC_FLAGS = -ffreestanding -m32 -nostdlib
+LD = gcc
+LD_FLAGS = -m32 -nostdlib -T kernel.ld
 
-# Files
-TARGET = bootloader
-SRC = $(SRC_DIR)/boot.c
-OBJ = $(OBJ_DIR)/boot.o
-BIN = $(BIN_DIR)/$(TARGET)
+# Hedefler
+all: $(OS_IMAGE)
 
-# Default target
-all: $(BIN)
+# Bootloader derlemesi
+$(BOOTLOADER_BIN): $(BOOTLOADER_SRC)
+	$(ASM) $(ASM_FLAGS) -o $@ $<
 
-# Compile C source files
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
-	@mkdir -p $(OBJ_DIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+# Assembly kernel derlemesi
+$(KERNEL1_BIN): $(KERNEL1_SRC)
+	$(ASM) $(ASM_FLAGS) -o $@ $<
 
-# Link object files to create the binary
-$(BIN): $(OBJ)
-	@mkdir -p $(BIN_DIR)
-	$(LD) $(LDFLAGS) -o $@ $^
+# C kernel derlemesi
+$(KERNEL_C_BIN): $(KERNEL_C_SRC) kernel.ld
+	$(GCC) $(GCC_FLAGS) -c $< -o kernel.o
+	$(LD) $(LD_FLAGS) -o $@ kernel.o
 
-# Clean up build artifacts
+# Bootloader ve kernel'leri birleştirme
+$(OS_IMAGE): $(BOOTLOADER_BIN) $(KERNEL1_BIN) $(KERNEL_C_BIN)
+	cat $(BOOTLOADER_BIN) $(KERNEL1_BIN) $(KERNEL_C_BIN) > $@
+
+# Temizlik
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR)
+	rm -f $(BOOTLOADER_BIN) $(KERNEL1_BIN) $(KERNEL_C_BIN) kernel.o $(OS_IMAGE)
 
-# Rebuild everything
-rebuild: clean all
+# Çalıştırma
+run: $(OS_IMAGE)
+	qemu-system-x86_64 -drive format=raw,file=$(OS_IMAGE)
 
-.PHONY: all clean rebuild
+.PHONY: all clean run
