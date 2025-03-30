@@ -23,8 +23,8 @@ Ferryboot is a customizable bootloader development project. This project is desi
 
 2. **Clone the Project**:
    ```bash
-   git clone <repository-url>
-   cd Ferryboot
+   git clone https://github.com/melihxz/ferryboot
+   cd ferryboot
    ```
 
 3. **Build the Project**:
