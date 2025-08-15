@@ -1,4 +1,5 @@
 #include "string.h"
+#include "memory.h"
 
 size_t string_length(const char* str) {
     size_t len = 0;
@@ -48,7 +49,7 @@ char* string_copy_n(char* dest, const char* src, size_t n) {
 
 char* string_duplicate(const char* src) {
     size_t len = string_length(src) + 1;
-    char* dup = memory_alloc(len);
+    char* dup = (char*)memory_alloc(len);
     if (dup) {
         string_copy(dup, src);
     }
