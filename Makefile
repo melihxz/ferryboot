@@ -22,13 +22,13 @@ UEFI_TARGET = $(BIN_DIR)/ferryboot_uefi.efi
 # Source files
 BIOS_SOURCES = $(SRC_DIR)/bios/stage1.asm $(SRC_DIR)/bios/stage2.c
 BIOS_ASM_SOURCES = $(SRC_DIR)/bios/interrupts.asm
-COMMON_SOURCES = $(SRC_DIR)/common/config.c $(SRC_DIR)/common/memory.c $(SRC_DIR)/common/module.c $(SRC_DIR)/common/string.c
+COMMON_SOURCES = $(SRC_DIR)/common/config.c $(SRC_DIR)/common/memory.c $(SRC_DIR)/common/module.c $(SRC_DIR)/common/string.c $(SRC_DIR)/common/module_loader.c
 BIOS_COMMON_SOURCES = $(SRC_DIR)/common/ui.c
 UEFI_COMMON_SOURCES = $(SRC_DIR)/uefi/ui.c $(SRC_DIR)/uefi/gui.c
 BIOS_HAL_SOURCES = $(SRC_DIR)/bios/hal.c
 UEFI_HAL_SOURCES = $(SRC_DIR)/uefi/hal.c
-CRYPTO_SOURCES = $(SRC_DIR)/common/crypto/sha256.c $(SRC_DIR)/common/crypto/hmac_sha256.c $(SRC_DIR)/common/crypto/pbkdf2.c
-MODULE_SOURCES = $(SRC_DIR)/modules/fs/fat32.c $(SRC_DIR)/modules/security/security.c
+CRYPTO_SOURCES = $(SRC_DIR)/common/crypto/sha256.c $(SRC_DIR)/common/crypto/hmac_sha256.c $(SRC_DIR)/common/crypto/pbkdf2.c $(SRC_DIR)/common/crypto/rsa.c $(SRC_DIR)/common/crypto/aes.c
+MODULE_SOURCES = $(SRC_DIR)/modules/fs/fat32.c $(SRC_DIR)/modules/fs/ext4.c $(SRC_DIR)/modules/security/security.c $(SRC_DIR)/modules/network/pxe.c
 
 # Default target
 .PHONY: all bios uefi clean
@@ -52,6 +52,7 @@ $(BUILD_DIR)/stage2.bin: $(SRC_DIR)/bios/stage2.c $(COMMON_SOURCES) $(BIOS_COMMO
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/config.c -o $(BUILD_DIR)/config.o
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/memory.c -o $(BUILD_DIR)/memory.o
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/module.c -o $(BUILD_DIR)/module.o
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/module_loader.c -o $(BUILD_DIR)/module_loader.o
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/string.c -o $(BUILD_DIR)/string.o
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/ui.c -o $(BUILD_DIR)/ui.o
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/bios/hal.c -o $(BUILD_DIR)/bios_hal.o
@@ -59,9 +60,13 @@ $(BUILD_DIR)/stage2.bin: $(SRC_DIR)/bios/stage2.c $(COMMON_SOURCES) $(BIOS_COMMO
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/crypto/sha256.c -o $(BUILD_DIR)/sha256.o
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/crypto/hmac_sha256.c -o $(BUILD_DIR)/hmac_sha256.o
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/crypto/pbkdf2.c -o $(BUILD_DIR)/pbkdf2.o
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/crypto/rsa.c -o $(BUILD_DIR)/rsa.o
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/crypto/aes.c -o $(BUILD_DIR)/aes.o
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/modules/fs/fat32.c -o $(BUILD_DIR)/fat32.o
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/modules/fs/ext4.c -o $(BUILD_DIR)/ext4.o
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/modules/security/security.c -o $(BUILD_DIR)/security.o
-	$(LD) $(LDFLAGS) -T stage2.ld $(BUILD_DIR)/stage2.o $(BUILD_DIR)/config.o $(BUILD_DIR)/memory.o $(BUILD_DIR)/module.o $(BUILD_DIR)/string.o $(BUILD_DIR)/ui.o $(BUILD_DIR)/bios_hal.o $(BUILD_DIR)/interrupts.o $(BUILD_DIR)/sha256.o $(BUILD_DIR)/hmac_sha256.o $(BUILD_DIR)/pbkdf2.o $(BUILD_DIR)/fat32.o $(BUILD_DIR)/security.o -o $@
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/modules/network/pxe.c -o $(BUILD_DIR)/pxe.o
+	$(LD) $(LDFLAGS) -T stage2.ld $(BUILD_DIR)/stage2.o $(BUILD_DIR)/config.o $(BUILD_DIR)/memory.o $(BUILD_DIR)/module.o $(BUILD_DIR)/module_loader.o $(BUILD_DIR)/string.o $(BUILD_DIR)/ui.o $(BUILD_DIR)/bios_hal.o $(BUILD_DIR)/interrupts.o $(BUILD_DIR)/sha256.o $(BUILD_DIR)/hmac_sha256.o $(BUILD_DIR)/pbkdf2.o $(BUILD_DIR)/rsa.o $(BUILD_DIR)/aes.o $(BUILD_DIR)/fat32.o $(BUILD_DIR)/ext4.o $(BUILD_DIR)/security.o $(BUILD_DIR)/pxe.o -o $@
 
 # UEFI build
 uefi: $(UEFI_TARGET)
