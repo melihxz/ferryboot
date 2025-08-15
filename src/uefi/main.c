@@ -4,8 +4,8 @@
 #include <efi.h>
 #include <efilib.h>
 #include "hal.h"
+#include "ui.h"
 #include "../common/config.h"
-#include "../common/ui.h"
 #include "../common/module.h"
 
 EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
@@ -15,7 +15,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
         return EFI_LOAD_ERROR;
     }
     
-    // Print welcome message
+    // Print welcome message to console
     Print(L"FerryBoot v0.1 - UEFI Mode\n");
     Print(L"Initializing bootloader...\n");
     
@@ -48,10 +48,6 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
         // No valid entry selected, show setup wizard
         ui_show_setup_wizard(&config);
     }
-    
-    // Wait for user input before exiting
-    Print(L"Press any key to continue...\n");
-    WaitForSingleEvent(ST->ConIn->WaitForKey, 0);
     
     // Cleanup
     uefi_hal_cleanup();

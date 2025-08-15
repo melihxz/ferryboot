@@ -1,5 +1,6 @@
 #include "hal.h"
 #include "../common/memory.h"
+#include "../common/string.h"
 
 // Global UEFI HAL instance
 static uefi_hal_t uefi_hal_instance;
@@ -50,11 +51,13 @@ static void uefi_set_video_mode(uint32_t width, uint32_t height, uint32_t depth)
         UINTN size;
         
         EFI_STATUS status = uefi_hal_instance.gop->QueryMode(uefi_hal_instance.gop, i, &size, &info);
-        if (status == EFI_SUCCESS && 
-            info->HorizontalResolution == width && 
-            info->VerticalResolution == height) {
-            uefi_hal_instance.gop->SetMode(uefi_hal_instance.gop, i);
-            break;
+        if (status == EFI_SUCCESS) {
+            if (info->HorizontalResolution == width && 
+                info->VerticalResolution == height &&
+                info->PixelFormat == PixelBlueGreenRedReserved8BitPerColor) {
+                uefi_hal_instance.gop->SetMode(uefi_hal_instance.gop, i);
+                break;
+            }
         }
     }
 }
@@ -95,8 +98,7 @@ static bool uefi_key_pressed(void) {
         return false;
     }
     
-    EFI_STATUS status = uefi_boot_services->CheckEvent(uefi_hal_instance.system_table->ConIn->WaitForKey);
-    return (status == EFI_SUCCESS);
+    return (uefi_hal_instance.system_table->ConIn->WaitForKey != NULL);
 }
 
 static uint32_t uefi_get_key(void) {
@@ -110,7 +112,8 @@ static uint32_t uefi_get_key(void) {
     );
     
     if (status == EFI_SUCCESS) {
-        return key.UnicodeChar ? key.UnicodeChar : key.ScanCode;
+        // Return Unicode character if available, otherwise scan code
+        return key.UnicodeChar ? key.UnicodeChar : (key.ScanCode << 8);
     }
     
     return 0;
@@ -121,12 +124,14 @@ static bool uefi_mouse_moved(void) {
         return false;
     }
     
-    EFI_STATUS status = uefi_boot_services->CheckEvent(uefi_hal_instance.pointer->WaitForInput);
-    return (status == EFI_SUCCESS);
+    return (uefi_hal_instance.pointer->WaitForInput != NULL);
 }
 
 static void uefi_get_mouse_state(int32_t* x, int32_t* y, uint32_t* buttons) {
     if (!uefi_hal_instance.pointer || !x || !y || !buttons) {
+        if (x) *x = 0;
+        if (y) *y = 0;
+        if (buttons) *buttons = 0;
         return;
     }
     
@@ -137,6 +142,10 @@ static void uefi_get_mouse_state(int32_t* x, int32_t* y, uint32_t* buttons) {
         *x = (int32_t)state.RelativeMovementX;
         *y = (int32_t)state.RelativeMovementY;
         *buttons = state.LeftButton ? 1 : (state.RightButton ? 2 : 0);
+    } else {
+        *x = 0;
+        *y = 0;
+        *buttons = 0;
     }
 }
 
@@ -150,7 +159,8 @@ static uint64_t uefi_get_ticks(void) {
     EFI_STATUS status = uefi_hal_instance.system_table->RuntimeServices->GetTime(&time, NULL);
     
     if (status == EFI_SUCCESS) {
-        return ((uint64_t)time.Year * 365 * 24 * 60 * 60) +
+        // Convert to seconds since epoch (approximate)
+        return ((uint64_t)time.Year - 1970) * 365 * 24 * 60 * 60 +
                ((uint64_t)time.Month * 30 * 24 * 60 * 60) +
                ((uint64_t)time.Day * 24 * 60 * 60) +
                ((uint64_t)time.Hour * 60 * 60) +
@@ -191,6 +201,22 @@ static void uefi_free(void* ptr) {
     uefi_hal_instance.system_table->BootServices->FreePool(ptr);
 }
 
+// UEFI network implementation (placeholder)
+static int uefi_network_init(void) {
+    // Placeholder implementation
+    return 0;
+}
+
+static int uefi_dhcp_request(network_config_t* config) {
+    // Placeholder implementation
+    return 0;
+}
+
+static int uefi_tftp_download(const char* server, const char* filename, void* buffer, size_t* size) {
+    // Placeholder implementation
+    return 0;
+}
+
 // Initialize UEFI HAL
 int uefi_hal_init(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE* system_table) {
     // Initialize UEFI library
@@ -205,7 +231,7 @@ int uefi_hal_init(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE* system_table) {
     
     // Initialize UEFI protocols
     // Graphics Output Protocol
-    EFI_STATUS status = uefi_boot_services->LocateProtocol(
+    uefi_boot_services->LocateProtocol(
         &GraphicsOutputProtocol, NULL, (VOID**)&uefi_hal_instance.gop
     );
     
@@ -217,7 +243,7 @@ int uefi_hal_init(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE* system_table) {
     // Block I/O Protocol (storage)
     EFI_HANDLE* handles;
     UINTN handle_count;
-    status = uefi_boot_services->LocateHandleBuffer(
+    EFI_STATUS status = uefi_boot_services->LocateHandleBuffer(
         ByProtocol, &BlockIoProtocol, NULL, &handle_count, &handles
     );
     
@@ -239,6 +265,9 @@ int uefi_hal_init(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE* system_table) {
     uefi_hal_instance.base.get_key = uefi_get_key;
     uefi_hal_instance.base.mouse_moved = uefi_mouse_moved;
     uefi_hal_instance.base.get_mouse_state = uefi_get_mouse_state;
+    uefi_hal_instance.base.network_init = uefi_network_init;
+    uefi_hal_instance.base.dhcp_request = uefi_dhcp_request;
+    uefi_hal_instance.base.tftp_download = uefi_tftp_download;
     uefi_hal_instance.base.get_ticks = uefi_get_ticks;
     uefi_hal_instance.base.sleep = uefi_sleep;
     uefi_hal_instance.base.alloc = uefi_alloc;
