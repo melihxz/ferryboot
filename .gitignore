@@ -1,0 +1,4 @@
+*.bin
+os-image
+bin/
+build/
