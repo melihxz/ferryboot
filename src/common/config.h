@@ -51,11 +51,20 @@ typedef struct {
     uint8_t reserved[1024];
 } config_t;
 
+// Forward declaration for boot entry
+struct boot_entry {
+    char name[64];
+    char path[256];
+    char parameters[256];
+    uint32_t type;
+    bool enabled;
+};
+
 // Configuration API
 int config_load(config_t* config);
 int config_save(const config_t* config);
 int config_init_defaults(config_t* config);
 bool config_validate(const config_t* config);
-int config_add_boot_entry(config_t* config, const boot_entry_t* entry);
+int config_add_boot_entry(config_t* config, const struct boot_entry* entry);
 
 #endif // FERRYBOOT_CONFIG_H

@@ -5,6 +5,10 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "../common/string.h"
+#include "../common/config.h"
+#include "../common/module.h"
+#include "../common/ui.h"
+#include "hal.h"
 
 // VGA text mode dimensions
 #define VGA_WIDTH 80
@@ -58,14 +62,47 @@ void _start(void) {
     // Initialize terminal
     terminal_initialize();
     
+    // Initialize BIOS HAL
+    if (bios_hal_init() != 0) {
+        terminal_writestring("Error: Failed to initialize BIOS HAL\n");
+        for (;;);
+    }
+    
     // Print welcome message
     terminal_writestring("FerryBoot v0.1\n");
     terminal_writestring("Initializing bootloader...\n");
     
-    // TODO: Detect hardware
-    // TODO: Load configuration
-    // TODO: Show boot menu
-    // TODO: Load OS
+    // Load configuration
+    config_t config;
+    if (config_load(&config) != 0) {
+        terminal_writestring("Warning: Failed to load configuration, using defaults\n");
+        config_init_defaults(&config);
+    }
+    
+    // Initialize module system
+    if (module_init_all() != 0) {
+        terminal_writestring("Error: Failed to initialize modules\n");
+        for (;;);
+    }
+    
+    // Initialize UI
+    if (ui_init(config.gui_mode) != 0) {
+        terminal_writestring("Error: Failed to initialize UI\n");
+        for (;;);
+    }
+    
+    // Show boot menu
+    int selected_entry = ui_show_boot_menu(&config);
+    if (selected_entry >= 0 && selected_entry < (int)config.entry_count) {
+        // Boot selected OS
+        // In a real implementation, this would load and boot the OS
+        terminal_writestring("Booting ");
+        terminal_writestring(config.entries[selected_entry].name);
+        terminal_writestring("...\n");
+    } else {
+        // No valid entry selected, show setup wizard
+        ui_show_setup_wizard(&config);
+    }
     
     // For now, just print a message and hang
     terminal_writestring("Bootloader initialized successfully.\n");

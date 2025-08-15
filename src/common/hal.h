@@ -5,6 +5,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// Forward declaration for network config
+typedef struct network_config network_config_t;
+
 // Hardware interface
 typedef struct {
     // Storage functions
