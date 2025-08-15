@@ -27,6 +27,8 @@ BIOS_COMMON_SOURCES = $(SRC_DIR)/common/ui.c
 UEFI_COMMON_SOURCES = $(SRC_DIR)/uefi/ui.c $(SRC_DIR)/uefi/gui.c
 BIOS_HAL_SOURCES = $(SRC_DIR)/bios/hal.c
 UEFI_HAL_SOURCES = $(SRC_DIR)/uefi/hal.c
+CRYPTO_SOURCES = $(SRC_DIR)/common/crypto/sha256.c $(SRC_DIR)/common/crypto/hmac_sha256.c $(SRC_DIR)/common/crypto/pbkdf2.c
+MODULE_SOURCES = $(SRC_DIR)/modules/fs/fat32.c $(SRC_DIR)/modules/security/security.c
 
 # Default target
 .PHONY: all bios uefi clean
@@ -44,7 +46,7 @@ $(BUILD_DIR)/stage1.bin: $(SRC_DIR)/bios/stage1.asm
 	@mkdir -p $(BUILD_DIR)
 	$(AS) $< -o $@
 
-$(BUILD_DIR)/stage2.bin: $(SRC_DIR)/bios/stage2.c $(COMMON_SOURCES) $(BIOS_COMMON_SOURCES) $(BIOS_HAL_SOURCES) $(BIOS_ASM_SOURCES)
+$(BUILD_DIR)/stage2.bin: $(SRC_DIR)/bios/stage2.c $(COMMON_SOURCES) $(BIOS_COMMON_SOURCES) $(BIOS_HAL_SOURCES) $(BIOS_ASM_SOURCES) $(CRYPTO_SOURCES) $(MODULE_SOURCES)
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $(BUILD_DIR)/stage2.o
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/config.c -o $(BUILD_DIR)/config.o
@@ -54,12 +56,17 @@ $(BUILD_DIR)/stage2.bin: $(SRC_DIR)/bios/stage2.c $(COMMON_SOURCES) $(BIOS_COMMO
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/ui.c -o $(BUILD_DIR)/ui.o
 	$(CC) $(CFLAGS) -c $(SRC_DIR)/bios/hal.c -o $(BUILD_DIR)/bios_hal.o
 	$(AS) $(ASFLAGS) $(SRC_DIR)/bios/interrupts.asm -o $(BUILD_DIR)/interrupts.o
-	$(LD) $(LDFLAGS) -T stage2.ld $(BUILD_DIR)/stage2.o $(BUILD_DIR)/config.o $(BUILD_DIR)/memory.o $(BUILD_DIR)/module.o $(BUILD_DIR)/string.o $(BUILD_DIR)/ui.o $(BUILD_DIR)/bios_hal.o $(BUILD_DIR)/interrupts.o -o $@
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/crypto/sha256.c -o $(BUILD_DIR)/sha256.o
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/crypto/hmac_sha256.c -o $(BUILD_DIR)/hmac_sha256.o
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/common/crypto/pbkdf2.c -o $(BUILD_DIR)/pbkdf2.o
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/modules/fs/fat32.c -o $(BUILD_DIR)/fat32.o
+	$(CC) $(CFLAGS) -c $(SRC_DIR)/modules/security/security.c -o $(BUILD_DIR)/security.o
+	$(LD) $(LDFLAGS) -T stage2.ld $(BUILD_DIR)/stage2.o $(BUILD_DIR)/config.o $(BUILD_DIR)/memory.o $(BUILD_DIR)/module.o $(BUILD_DIR)/string.o $(BUILD_DIR)/ui.o $(BUILD_DIR)/bios_hal.o $(BUILD_DIR)/interrupts.o $(BUILD_DIR)/sha256.o $(BUILD_DIR)/hmac_sha256.o $(BUILD_DIR)/pbkdf2.o $(BUILD_DIR)/fat32.o $(BUILD_DIR)/security.o -o $@
 
 # UEFI build
 uefi: $(UEFI_TARGET)
 
-$(UEFI_TARGET): $(SRC_DIR)/uefi/main.c $(COMMON_SOURCES) $(UEFI_COMMON_SOURCES) $(UEFI_HAL_SOURCES)
+$(UEFI_TARGET): $(SRC_DIR)/uefi/main.c $(COMMON_SOURCES) $(UEFI_COMMON_SOURCES) $(UEFI_HAL_SOURCES) $(CRYPTO_SOURCES) $(MODULE_SOURCES)
 	@mkdir -p $(BIN_DIR)
 	# UEFI compilation would go here
 	# This is a placeholder - actual UEFI compilation requires special tools
